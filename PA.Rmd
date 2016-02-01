@@ -1,0 +1,69 @@
+---
+title: "PA1"
+author: "Tomasz Wojtas"
+date: "1 lutego 2016"
+output: html_document
+---
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+##Loading libraries
+```{r, warning=FALSE, message=FALSE}
+library(caret)
+library(randomForest)
+library(dplyr)
+library(rpart)
+library(rpart.plot)
+library(e1071)
+```
+
+##Loading and cleaning data
+```{r, echo=FALSE}
+trainurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+##download.file(trainurl, "training.csv")
+##download.file(testurl, "testing.csv")
+
+trainset <- read.csv("training.csv", na.strings=c("NA", "#DIV/0!", ""))
+testset <- read.csv("testing.csv", na.strings=c("NA", "#DIV/0!", ""))
+
+trainset<-trainset[,colSums(is.na(trainset)) == 0]
+testset <-testset[,colSums(is.na(testset)) == 0]
+
+##to exclude unnecessary variables (otherwise them breake our model)
+trainset   <-trainset[,-c(1:7)]
+testset <-testset[,-c(1:7)]
+```
+
+##Splitting trainset into two subsets: training subset and testing subset
+```{r}
+subsamples <- createDataPartition(y=trainset$classe, p=0.7, list=FALSE)
+subtrain <- trainset[subsamples,]
+subtest <- trainset[-subsamples,]
+table(subtrain$classe)
+```
+
+##Prediction model
+```{r}
+fit <- rpart(classe ~., data=subtrain, method="class")
+prediction <- predict(fit, subtest, type="class")
+confusionMatrix(prediction, subtest$classe)
+```
+
+##Secondary prediction model
+```{r}
+fit2 <- randomForest(classe~., data=subtrain, method="class")
+prediction2 <- predict(fit2, subtest, type="class")
+confusionMatrix(prediction2, subtest$classe)
+```
+
+First model is quite good accuracy (0,7244). In the table we can see that a lot of predictions missed real values.
+
+Better model is the second one, made using randomForest fitting. It has perfect accuracy (9952) - almost each prediction of this model is correct. Of course these interpretation is correct according to training set.
+
+Now lets make some predictions using second model to testing set:
+```{r}
+submission <- predict(fit2, testset, type="class")
+submission
+```
